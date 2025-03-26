@@ -1,0 +1,15 @@
+.idea/
+services/*/src/node_modules/
+services/*/.git/
+services/*/config/custom.env
+.vscode/
+services/*/src/public/storage/*
+npm-debug.log
+yarn-error.log
+/logs
+.env
+.env.dusk.local
+.env.dusk.production
+.env~
+.env.dusk.local~
+.env.dusk.production~

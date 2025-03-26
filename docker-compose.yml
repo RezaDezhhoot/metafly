@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  admin:
+    build:
+      context: ./services/admin
+      dockerfile: Dockerfile
+    container_name: metafly_admin
+    hostname: metafly_admin
+    image: metafly_admin
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    working_dir: /home/app
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./services/admin/src:/home/app
+      - ./services/storage/data:/home/app/storage/app/public
+      - /home/app/vendor
+    env_file:
+      - .env
+    networks:
+      - main
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    container_name: metafly_api
+    hostname: metafly_api
+    image: metafly_api
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./services/storage/data:/app/public/storage
+    env_file:
+      - .env
+    networks:
+      - main
+  db:
+    image: postgres
+    restart: unless-stopped
+    container_name: ${DB_HOST}
+    volumes:
+      - ./services/postgresql/data:/var/lib/postgresql/data
+    ports:
+      - "5423:5432"
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    networks:
+      - main
+  pgadmin:
+    container_name: container-pgadmin
+    image: dpage/pgadmin4
+    depends_on:
+      - db
+    ports:
+      - "5050:80"
+    volumes:
+      - ./services/pgadmin/data:/var/lib/pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${DB_MAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${DB_PASSWORD}
+    restart: unless-stopped
+    networks:
+      - main
+  redis:
+    image: redis
+    restart: on-failure
+    container_name: ${REDIS_HOST}
+    tty: true
+    ports:
+      - ${REDIS_PORT}:${REDIS_PORT}
+    command: redis-server --save 20 1 --loglevel warning  --requirepass ${REDIS_PASSWORD} --maxmemory 2048mb --maxmemory-policy allkeys-lru --appendonly yes --port ${REDIS_PORT}
+    volumes:
+      - ./services/redis/data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_PORT=6379
+      - REDIS_DATABASES=16
+    networks:
+      - main
+networks:
+  main:
+    name: metafly
+    driver: bridge
