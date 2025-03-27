@@ -2,6 +2,7 @@ package post
 
 import (
 	"api/packages/v1/category"
+	"api/packages/v1/topic"
 	"api/packages/v1/user"
 	"gorm.io/gorm"
 	"time"
@@ -25,6 +26,7 @@ type Post struct {
 	CreatedAt      time.Time               `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt      time.Time               `gorm:"column:updated_at" json:"updated_at"`
 	Categories     []category.Categoryable `gorm:"polymorphicType:CategoryableType;polymorphicId:CategoryableID;polymorphicValue:post" json:"categories"`
+	Topics         []topic.Topicables      `gorm:"polymorphicType:TopicableType;polymorphicId:TopicableID;polymorphicValue:post" json:"topics"`
 	ContentWrapped any                     `gorm:"-:all" json:"content,omitempty"`
 }
 
@@ -49,6 +51,12 @@ func WithCategories() func(DB *gorm.DB) *gorm.DB {
 		return DB.Preload("Categories").
 			Preload("Categories.Category").
 			Preload("Categories.Category.Parent")
+	}
+}
+
+func WithTopics() func(DB *gorm.DB) *gorm.DB {
+	return func(DB *gorm.DB) *gorm.DB {
+		return DB.Preload("Topics").Preload("Topics.Topic")
 	}
 }
 

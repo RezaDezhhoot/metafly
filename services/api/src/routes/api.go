@@ -22,7 +22,10 @@ func Api(r *gin.RouterGroup) {
 		pstRouter := v1.Group("posts")
 		{
 			pstRouter.GET("", post.Index)
-			pstRouter.GET(":slug", post.Show)
+			pstRouter.GET(":id/comments", post.Comments)
+			pstRouter.POST(":id/comments", post.SendComment)
+			pstRouter.POST(":id/comments/:comment/like", post.LikeComment)
+			pstRouter.GET(":id", post.Show)
 		}
 		faqRouter := v1.Group("faq")
 		{

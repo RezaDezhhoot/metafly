@@ -3,6 +3,7 @@ package base
 import (
 	"errors"
 	"github.com/go-playground/validator/v10"
+	"strings"
 )
 
 type Response struct {
@@ -70,7 +71,7 @@ func getValidationErrors(error error) *[]validationError {
 	if errors.As(error, &ve) {
 		for _, err := range error.(validator.ValidationErrors) {
 			e := validationError{
-				Field:   err.Field(),
+				Field:   strings.ToLower(err.Field()),
 				Tag:     err.Tag(),
 				Param:   err.Param(),
 				Message: err.Error(),

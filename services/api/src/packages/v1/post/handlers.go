@@ -5,11 +5,20 @@ import (
 	"api/helpers"
 	"api/packages/v1/base"
 	"api/packages/v1/category"
+	"api/packages/v1/comment"
+	"api/packages/v1/user"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"strconv"
+	"sync"
+)
+
+var (
+	sendCommentMx sync.Mutex
+	likeCommentMx sync.Mutex
 )
 
 func Index(c *gin.Context) {
@@ -77,7 +86,7 @@ func Index(c *gin.Context) {
 }
 
 func Show(c *gin.Context) {
-	slug, ok := c.Params.Get("slug")
+	id, ok := c.Params.Get("id")
 	if !ok {
 		c.AbortWithStatusJSON(404, base.GenerateBaseResponse(nil, false, 404, "", nil))
 		return
@@ -87,7 +96,7 @@ func Show(c *gin.Context) {
 		result       Post
 		relatedPosts []Post
 	)
-	q := DB.Model(&Post{}).Where("slug = ?", slug).Scopes(WithCategories(), WithAuthor(), Published()).First(&result)
+	q := DB.Model(&Post{}).Where("id = ?", id).Scopes(WithCategories(), WithAuthor(), Published(), WithTopics()).First(&result)
 	if q.Error != nil {
 		if errors.As(q.Error, &gorm.ErrRecordNotFound) {
 			c.AbortWithStatusJSON(404, base.GenerateBaseResponse(nil, false, 404, "", nil))
@@ -117,9 +126,148 @@ func Show(c *gin.Context) {
 			}
 		})
 	}
+	DB.Model(&Post{}).Where("id = ?", result.ID).UpdateColumn("views", gorm.Expr("views + ?", 1))
+	result.Views++
 	c.JSON(200, base.GenerateBaseResponse(result, true, 200, "", &base.MetaData{
 		ExtraData: base.ExtraData{
 			"related_posts": relatedPosts,
 		},
 	}))
+}
+
+func Comments(c *gin.Context) {
+	pg := base.NewPagination(c)
+	DB := config.GetPostgres()
+	id, ok := c.Params.Get("id")
+	if !ok {
+		c.AbortWithStatusJSON(404, base.GenerateBaseResponse(nil, false, 404, "", nil))
+		return
+	}
+	postID, err := strconv.Atoi(id)
+	if err != nil || postID < 0 {
+		c.AbortWithStatusJSON(404, base.GenerateBaseResponse(nil, false, 404, "", nil))
+		return
+	}
+	var (
+		results []comment.Comment
+		total   int64
+	)
+	q := DB.Model(&comment.Comment{}).Order("id desc").Scopes(comment.Published(), comment.WithRepliesCount(), comment.WithUser())
+	parent := c.Query("parent")
+	if parentID, err := strconv.Atoi(parent); err == nil && parentID > 0 {
+		q.Where("reply_on = ?", parentID)
+	} else {
+		q.Where("reply_on IS NULL")
+	}
+	res := q.Where("commentable_id = ? AND commentable_type = ?", postID, "post").
+		Offset(pg.Offset()).
+		Limit(pg.PerPage()).
+		Find(&results)
+	res.Count(&total)
+	helpers.Map(&results, func(i int, item *comment.Comment) {
+		println(item.User.ID)
+		if item.User.Image != nil {
+			avatar := helpers.Asset(*item.User.Image)
+			item.User.Image = &avatar
+		}
+	})
+
+	c.JSON(200, base.GenerateBaseResponse(results, true, 200, "", &base.MetaData{
+		CurrentPage: pg.Page(),
+		PerPage:     pg.PerPage(),
+		LastPage:    pg.LastPage(float64(total)),
+		Total:       total,
+	}))
+}
+
+func SendComment(c *gin.Context) {
+	id, ok := c.Params.Get("id")
+	if !ok {
+		c.AbortWithStatusJSON(404, base.GenerateBaseResponse(nil, false, 404, "", nil))
+		return
+	}
+	postID, err := strconv.Atoi(id)
+	if err != nil || postID < 0 {
+		c.AbortWithStatusJSON(404, base.GenerateBaseResponse(nil, false, 404, "", nil))
+		return
+	}
+	type SendCommentBody struct {
+		Body    string `json:"body" form:"body" validate:"required,min=4,max=100000000"`
+		Name    string `json:"name" form:"name" validate:"required,min=2,max=20"`
+		Email   string `json:"email" form:"email" validate:"required,email,max=200"`
+		Phone   string `json:"phone" form:"phone" validate:"required,number,len=11"`
+		ReplyOn *uint  `json:"reply_on" form:"reply_on" validate:"omitempty,number,gte=1"`
+	}
+	var sendCommentBody SendCommentBody
+	if err = c.ShouldBind(&sendCommentBody); err != nil {
+		c.AbortWithStatusJSON(400, base.GenerateBaseResponseWithError(nil, false, 400, err))
+		return
+	}
+	v := config.Validator()
+	err = v.Struct(&sendCommentBody)
+	if err != nil {
+		c.AbortWithStatusJSON(422, base.ValidationError(nil, false, 422, err))
+		return
+	}
+	DB := config.GetPostgres()
+	if sendCommentBody.ReplyOn != nil && *sendCommentBody.ReplyOn > 0 {
+		var check int64
+		_ = DB.Model(&comment.Comment{}).Select("*,COUNT(id)").Where("id = ? AND commentable_type = ?", sendCommentBody.ReplyOn, "post").Count(&check)
+		if check <= 0 {
+			c.AbortWithStatusJSON(404, base.GenerateBaseResponse(nil, false, 404, "", nil))
+			return
+		}
+	} else {
+		sendCommentBody.ReplyOn = nil
+	}
+
+	var sender user.User
+	DB.Where("phone = ? OR email = ?", sendCommentBody.Phone, sendCommentBody.Email).
+		Select("*").
+		Attrs(user.User{Name: sendCommentBody.Name, Email: sendCommentBody.Email, Phone: &sendCommentBody.Phone}).
+		FirstOrCreate(&sender)
+	newComment := comment.Comment{
+		Body:            sendCommentBody.Body,
+		CommentableID:   postID,
+		CommentableType: "post",
+		Status:          comment.DRAFT,
+		IsAdmin:         false,
+		UserID:          sender.ID,
+		ReplyOn:         sendCommentBody.ReplyOn,
+	}
+	sendCommentMx.Lock()
+	defer sendCommentMx.Unlock()
+	newComment.User = sender
+	res := DB.Model(&comment.Comment{}).Create(&newComment)
+	if res.Error != nil {
+		c.AbortWithStatusJSON(500, base.GenerateBaseResponseWithError(nil, false, 500, res.Error))
+		return
+	}
+	c.JSON(201, base.GenerateBaseResponse(newComment, true, 201, "", nil))
+}
+
+func LikeComment(c *gin.Context) {
+	id, ok := c.Params.Get("comment")
+	if !ok {
+		c.AbortWithStatusJSON(404, base.GenerateBaseResponse(nil, false, 404, "", nil))
+		return
+	}
+	commentId, err := strconv.Atoi(id)
+	if err != nil || commentId < 0 {
+		c.AbortWithStatusJSON(404, base.GenerateBaseResponse(nil, false, 404, "", nil))
+		return
+	}
+	DB := config.GetPostgres()
+	var result comment.Comment
+	res := DB.Model(&comment.Comment{}).Where("id = ? AND commentable_type = ?", commentId, "post").Scopes(comment.WithUser(), comment.WithParent(), comment.WithRepliesCount()).First(&result)
+	if res.Error != nil {
+		c.AbortWithStatusJSON(404, base.GenerateBaseResponse(nil, false, 404, "", nil))
+		return
+	}
+	likeCommentMx.Lock()
+	defer likeCommentMx.Unlock()
+	DB.Model(&result).UpdateColumn("likes", gorm.Expr("likes + ?", 1))
+
+	result.Likes++
+	c.JSON(201, base.GenerateBaseResponse(result, true, 201, "", nil))
 }
