@@ -17,7 +17,9 @@
                 <x-admin.forms.input width="4" type="text" :required="true" id="title" label="{{__('general.title')}}" wire:model.defer="title"/>
                 <x-admin.forms.dropdown width="2" id="status" :required="true" :data="$data['status']" label="{{__('general.status')}}" wire:model.defer="status"/>
                 <x-admin.forms.input width="6" type="text"  id="sub_title" label="{{__('general.sub_title')}}" wire:model.defer="sub_title"/>
-                <x-admin.forms.select2 :multiple="true" width="10" text="title" :data="$post?->categories?->toArray()" id="categories" label="{{__('general.category')}}" ajaxUrl="{{route('category.feed',['type'=> CategoryType::POST])}}" wire:model.defer="categories"/>
+                <x-admin.forms.select2 :multiple="true" width="5" text="title" :data="$post?->categories?->toArray()" id="categories" label="{{__('general.category')}}" ajaxUrl="{{route('category.feed',['type'=> CategoryType::POST])}}" wire:model.defer="categories"/>
+                <x-admin.forms.select2 :multiple="true" width="5" text="text" :data="$post?->points?->toArray()" id="points" label="{{__('general.points')}}" ajaxUrl="{{route('point.feed')}}" wire:model.defer="points"/>
+
                 <x-admin.forms.input width="2" type="number" :required="true" id="study_time" label="{{__('general.study_time')}}" wire:model.defer="study_time"/>
 
                 <x-admin.forms.checkbox id="slider" label="{{__('general.slider')}}"  wire:model.defer="slider"/>

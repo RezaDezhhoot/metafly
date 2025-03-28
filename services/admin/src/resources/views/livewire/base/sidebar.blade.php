@@ -118,6 +118,13 @@
                         :active="request()->routeIs(['transport.index','transport.store'])"
                         label="{{__('general.sidebar.transports')}}" />
                 @endcan
+                @can('show_currencies')
+                    <x-admin.menu-item
+                        href="{{route('currency.index')}}"
+                        icon="fas fa-dollar-sign"
+                        :active="request()->routeIs(['currency.index','currency.store'])"
+                        label="{{__('general.sidebar.currencies')}}" />
+                @endcan
 
                 @can('show_settings')
                     <x-admin.menu-group icon="fa fa-cog" :active="request()->routeIs(['settings.base','settings.contact','settings.footer','settings.landing','faq.index','faq.store'])" label="{{__('general.sidebar.settings') }}" >

@@ -9,7 +9,7 @@ use Illuminate\Validation\Rule;
 
 class StorePost extends BaseComponent
 {
-    public $post , $title , $sub_title , $study_time , $content = []  , $image , $status;
+    public $post , $title , $sub_title , $study_time , $content = []  , $image , $status , $points = [];
 
     public $categories ;
 
@@ -33,7 +33,9 @@ class StorePost extends BaseComponent
         $this->setMode($action);
         if ($this->isUpdatingMode()) {
             $this->authorizing('edit_blogs');
-            $this->post = Post::query()->with(['categories','topics'])->findOrFail($id);
+            $this->post = Post::query()->with(['categories','topics'  ,'points' => function ($q) {
+                $q->select2();
+            }])->findOrFail($id);
             $this->title = $this->post->title;
             $this->sub_title = $this->post->sub_title;
             $this->study_time = $this->post->study_time;
@@ -89,8 +91,10 @@ class StorePost extends BaseComponent
             $model->fill($data)->save();
             if ($model->wasRecentlyCreated) {
                 $model->categories()->attach($this->categories);
+                $model->points()->attach($this->points);
             } else {
                 $model->categories()->sync($this->categories);
+                $model->points()->sync($this->points);
             }
             $this->emitNotify(__('general.messages.saved-successfully'));
             $this->dispatch('saveTopics' , $model->id , $model::class);
@@ -117,5 +121,14 @@ class StorePost extends BaseComponent
     public function render()
     {
         return view('livewire.post.store-post')->extends('layouts.admin');
+    }
+
+    public function deleteItem()
+    {
+        $this->authorizing('delete_blogs');
+        if ($this->isUpdatingMode()) {
+            $this->post->delete();
+            redirect()->route('post.index');
+        }
     }
 }

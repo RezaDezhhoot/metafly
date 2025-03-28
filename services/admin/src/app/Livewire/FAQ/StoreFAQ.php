@@ -44,6 +44,15 @@ class StoreFAQ extends BaseComponent
         }
     }
 
+    public function deleteItem()
+    {
+        $this->authorizing('delete_faq');
+        if ($this->isUpdatingMode()) {
+            $this->faq->delete();
+            redirect()->route('faq.index');
+        }
+    }
+
     public function render()
     {
         return view('livewire.faq.store-faq')->extends('layouts.admin');

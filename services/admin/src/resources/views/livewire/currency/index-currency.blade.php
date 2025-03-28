@@ -1,34 +1,36 @@
 @use('App\Enums\PageAction')
 <div wire:init="init">
-    <x-admin.big-loader :loading="$loading" />
-    @section('title', __('pages.pages.index',['item' => __('general.sidebar.roles')]) )
-    <x-admin.form-control link="{{ route('role.store',[PageAction::CREATE] ) }}" title="{{ __('pages.pages.index',['item' => __('general.sidebar.roles')]) }}"/>
+    @section('title', __('pages.pages.index',['item' => __('general.sidebar.currencies')]) )
+    <x-admin.form-control link="{{ route('currency.store',PageAction::CREATE) }}" title="{{__('general.sidebar.currencies')}}"/>
     <div class="card card-custom">
         <div class="card-body">
+            @include('livewire.includes.advance-table')
             <div class="row">
-                <div class="col-lg-12 table-responsive">
-                    <table class="table table-striped table-bordered" id="kt_datatable">
+                <div class="col-12  table-responsive">
+                    <table class="table table-striped table-bordered">
                         <thead>
                         <tr>
                             <th>#</th>
+                            <th>{{ __('general.id') }}</th>
                             <th>{{ __('general.title') }}</th>
+                            <th>{{ __('general.amount') }}</th>
                             <th>{{ __('general.actions.actions') }}</th>
                         </tr>
                         </thead>
                         <tbody >
-                        @forelse($roles as $item)
+                        @forelse($items as $item)
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
-                                <td>{{ $item->name }}</td>
+                                <td>{{ $item->id }}</td>
+                                <td>{{ $item->title.' '.$item->symbol }}</td>
+                                <td>{{ number_format($item->amount) }}</td>
                                 <td>
-                                    @if(! in_array($item->name,['admin','administrator']))
-                                        <x-admin.edit-btn href="{{ route('role.store',[PageAction::UPDATE , $item->id]) }}"/>
-                                        <x-admin.delete-btn onclick="deleteItem('{{$item->id}}')"  />
-                                    @endif
+                                    <x-admin.edit-btn href="{{ route('currency.store',[PageAction::UPDATE , $item->id]) }}"/>
+                                    <x-admin.delete-btn onclick="deleteItem('{{$item->id}}')"  />
                                 </td>
                             </tr>
                         @empty
-                            <td class="text-center" colspan="4">
+                            <td class="text-center" colspan="16">
                                 {{ __('general.messages.no_data') }}
                             </td>
                         @endforelse
@@ -39,6 +41,9 @@
                     </table>
                 </div>
             </div>
+            @if(sizeof($items) > 0)
+                {{$items->links('layouts.paginate')}}
+            @endif
         </div>
     </div>
 </div>
@@ -56,7 +61,7 @@
                 confirmButtonText: '{{ __('general.actions.yes') }}',
             }).then((result) => {
                 if (result.value) {
-                    @this.call('remove', id)
+                @this.call('deleteItem', id)
                 }
             })
         }

@@ -61,6 +61,11 @@ class PermissionTableSeeder extends Seeder
             ['name' => 'edit_transports' , 'guard_name'=> 'web'],
             ['name' => 'delete_transports' , 'guard_name'=> 'web'],
 
+            ['name' => 'show_currencies' , 'guard_name'=> 'web'],
+            ['name' => 'create_currencies' , 'guard_name'=> 'web'],
+            ['name' => 'edit_currencies' , 'guard_name'=> 'web'],
+            ['name' => 'delete_currencies' , 'guard_name'=> 'web'],
+
             ['name' => 'show_comments' , 'guard_name'=> 'web'],
             ['name' => 'edit_comments' , 'guard_name'=> 'web'],
             ['name' => 'delete_comments' , 'guard_name'=> 'web'],

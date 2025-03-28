@@ -57,6 +57,15 @@ class StoreUser extends BaseComponent
         redirect()->route('user.index');
     }
 
+    public function deleteItem()
+    {
+        $this->authorizing('delete_users');
+        if ($this->isUpdatingMode()) {
+            $this->user->delete();
+            redirect()->route('user.index');
+        }
+    }
+
     public function render()
     {
         return view('livewire.users.store-user')->extends('layouts.admin');

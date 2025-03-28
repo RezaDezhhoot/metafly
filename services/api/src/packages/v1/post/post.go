@@ -2,6 +2,7 @@ package post
 
 import (
 	"api/packages/v1/category"
+	"api/packages/v1/point"
 	"api/packages/v1/topic"
 	"api/packages/v1/user"
 	"gorm.io/gorm"
@@ -27,6 +28,7 @@ type Post struct {
 	UpdatedAt      time.Time               `gorm:"column:updated_at" json:"updated_at"`
 	Categories     []category.Categoryable `gorm:"polymorphicType:CategoryableType;polymorphicId:CategoryableID;polymorphicValue:post" json:"categories"`
 	Topics         []topic.Topicables      `gorm:"polymorphicType:TopicableType;polymorphicId:TopicableID;polymorphicValue:post" json:"topics"`
+	Points         []point.ObjectPoint     `gorm:"polymorphicType:ObjectType;polymorphicId:ObjectID;polymorphicValue:post" json:"points,omitempty"`
 	ContentWrapped any                     `gorm:"-:all" json:"content,omitempty"`
 }
 

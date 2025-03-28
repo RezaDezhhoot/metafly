@@ -64,6 +64,10 @@ Route::group(['as' => 'faq.' , 'prefix' => 'faq','middleware' => ['auth','role:a
     Route::get('/{action}/{id?}', \App\Livewire\FAQ\StoreFAQ::class)->name('store');
 });
 
+Route::group(['as' => 'currency.' , 'prefix' => 'currencies','middleware' => ['auth','role:admin']] , function (){
+    Route::get('/', \App\Livewire\Currency\IndexCurrency::class)->name('index');
+    Route::get('/{action}/{id?}', \App\Livewire\Currency\StoreCurrency::class)->name('store');
+});
 
 Route::group(['as' => 'settings.' , 'prefix' => 'settings','middleware' => ['auth','role:admin']] , function (){
     Route::get('/base', \App\Livewire\Settings\BaseSettings::class)->name('base');

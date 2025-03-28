@@ -56,6 +56,15 @@ class StoreTransport extends BaseComponent
         }
     }
 
+    public function deleteItem()
+    {
+        $this->authorizing('delete_transports');
+        if ($this->isUpdatingMode()) {
+            $this->transport->delete();
+            redirect()->route('transport.index');
+        }
+    }
+
     public function render()
     {
         return view('livewire.transport.store-transport')->extends('layouts.admin');

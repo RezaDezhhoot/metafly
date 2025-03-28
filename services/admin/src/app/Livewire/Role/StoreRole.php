@@ -54,6 +54,15 @@ class StoreRole extends BaseComponent
         redirect()->route('role.index');
     }
 
+    public function deleteItem()
+    {
+        $this->authorizing('delete_roles');
+        if ($this->isUpdatingMode() && ! in_array($this->role->name,['admin','administrator'])) {
+            $this->role->delete();
+            redirect()->route('role.index');
+        }
+    }
+
     public function render()
     {
         return view('livewire.role.store-role')->extends('layouts.admin');

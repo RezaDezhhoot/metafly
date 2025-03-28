@@ -6,6 +6,7 @@ import (
 	"api/packages/v1/base"
 	"api/packages/v1/category"
 	"api/packages/v1/comment"
+	"api/packages/v1/point"
 	"api/packages/v1/user"
 	"encoding/json"
 	"errors"
@@ -44,6 +45,9 @@ func Index(c *gin.Context) {
 
 	if categories := c.QueryArray("categories"); len(categories) > 0 {
 		q.Joins("JOIN categoryables ON categoryables.categoryable_id = posts.id").Where("categoryables.category_id IN ? AND categoryables.categoryable_type = ?", categories, "post")
+	}
+	if points := c.QueryArray("points"); len(points) > 0 {
+		q.Joins("JOIN object_points op ON op.object_id = posts.id").Where("op.point_id IN ? AND op.object_type = ?", points, "post")
 	}
 
 	res := q.Group("posts.id").Find(&results)
@@ -270,4 +274,37 @@ func LikeComment(c *gin.Context) {
 
 	result.Likes++
 	c.JSON(201, base.GenerateBaseResponse(result, true, 201, "", nil))
+}
+
+func Points(c *gin.Context) {
+	pg := base.NewPagination(c)
+	DB := config.GetPostgres()
+	var (
+		results []point.Point
+		total   int64
+	)
+	q := DB.Model(&point.Point{}).Select("points.*,COUNT(op.id) AS objects_count").
+		Joins("JOIN object_points op ON op.point_id = points.id").
+		Where("op.object_type = ?", "post").
+		Group("points.id").
+		Offset(pg.Offset()).
+		Limit(pg.PerPage()).
+		Find(&results)
+
+	if q.Error != nil {
+		c.AbortWithStatusJSON(500, base.GenerateBaseResponseWithError(nil, false, 500, q.Error))
+		return
+	}
+	q.Count(&total)
+	helpers.Map(&results, func(i int, item *point.Point) {
+		title := point.ToCountry(item.Country).Label()
+		item.Title = &title
+		item.Image = helpers.Asset(item.Image)
+	})
+	c.JSON(200, base.GenerateBaseResponse(results, true, 200, "", &base.MetaData{
+		CurrentPage: pg.Page(),
+		PerPage:     pg.PerPage(),
+		LastPage:    pg.LastPage(float64(total)),
+		Total:       total,
+	}))
 }

@@ -46,4 +46,9 @@ class Post extends Model
     {
         return $this->belongsTo(User::class,'user_id');
     }
+
+    public function points(): MorphToMany
+    {
+        return $this->morphToMany(Point::class,'object','object_points');
+    }
 }

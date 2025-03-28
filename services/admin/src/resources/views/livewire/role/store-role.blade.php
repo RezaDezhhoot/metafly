@@ -38,7 +38,7 @@
 </div>
 @push('scripts')
     <script>
-        function deleteItem(id) {
+        function deleteItem() {
             Swal.fire({
                 title: '{{ __('general.actions.delete_item') }}',
                 text: '{{ __('general.messages.delete_item') }}',
@@ -50,7 +50,7 @@
                 confirmButtonText: '{{ __('general.actions.yes') }}',
             }).then((result) => {
                 if (result.value) {
-                @this.call('deleteItem', id)
+                @this.call('deleteItem')
                 }
             })
         }
